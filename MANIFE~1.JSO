@@ -1,0 +1,15 @@
+{
+  "name": "Modiko",
+  "short_name": "Modiko",
+  "description": "Planning & Registratie",
+  "start_url": "/Modiko/",
+  "scope": "/Modiko/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#8B20AC",
+  "theme_color": "#8B20AC",
+  "icons": [
+    { "src": "/Modiko/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "/Modiko/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}
