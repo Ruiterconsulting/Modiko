@@ -1,4 +1,4 @@
-const CACHE = 'modiko-v8';
+const CACHE = 'modiko-v9';
 
 const MANIFEST = JSON.stringify({
   name: 'Modiko',
