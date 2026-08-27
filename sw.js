@@ -1,4 +1,4 @@
-const CACHE = 'modiko-v9';
+const CACHE = 'modiko-v10';
 
 const MANIFEST = JSON.stringify({
   name: 'Modiko',
@@ -21,8 +21,9 @@ self.addEventListener('message', e => {
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(['/Modiko/', '/Modiko/icon-192.png', '/Modiko/icon-512.png']))
+    caches.open(CACHE).then(c => c.addAll(['/Modiko/icon-192.png', '/Modiko/icon-512.png']))
   );
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', e => {
@@ -50,7 +51,21 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // App shell: cache-first
+  // Hoofdpagina: altijd netwerk, fallback naar cache
+  if (url.pathname === '/Modiko/' || url.pathname === '/Modiko/index.html') {
+    e.respondWith(
+      fetch(e.request).then(res => {
+        if (res.ok) {
+          const clone = res.clone();
+          caches.open(CACHE).then(c => c.put(e.request, clone));
+        }
+        return res;
+      }).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Overige bestanden (icons etc): cache-first
   e.respondWith(
     caches.match(e.request).then(r => r || fetch(e.request).then(res => {
       if (res.ok && e.request.method === 'GET') {
