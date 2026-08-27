@@ -1,0 +1,1620 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Modiko</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#8B20AC">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Modiko">
+<link rel="apple-touch-icon" href="/icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+:root {
+  --purple: #8B20AC;
+  --purple-light: #A855C8;
+  --purple-dark: #6B1088;
+  --green: #4CAF50;
+  --red: #d32f2f;
+  --bg: #f2f2f7;
+  --white: #ffffff;
+  --text: #1a1a1a;
+  --text-muted: #8e8e93;
+  --border: #e5e5ea;
+  --tab-height: 64px;
+  --header-height: 56px;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+html, body {
+  height: 100%; height: 100dvh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: var(--bg); color: var(--text); overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ========== LOGIN ========== */
+#loginScreen {
+  position: fixed; inset: 0; background: linear-gradient(160deg, #6B1088 0%, #8B20AC 50%, #A855C8 100%);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 1000;
+  padding: 32px;
+}
+.login-logo { font-size: 52px; font-weight: 800; color: white; letter-spacing: 3px; margin-bottom: 6px; }
+.login-tagline { color: rgba(255,255,255,0.65); font-size: 14px; margin-bottom: 56px; letter-spacing: 1px; }
+.login-label { color: rgba(255,255,255,0.8); font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 14px; align-self: flex-start; }
+.login-users { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 300px; }
+.login-user-btn {
+  background: rgba(255,255,255,0.14); border: 1px solid rgba(255,255,255,0.25);
+  color: white; border-radius: 18px; padding: 16px 20px; font-size: 16px; font-weight: 600;
+  cursor: pointer; transition: background 0.15s, transform 0.1s; text-align: left;
+  display: flex; align-items: center; gap: 12px;
+}
+.login-user-btn:active { background: rgba(255,255,255,0.28); transform: scale(0.98); }
+.login-user-icon { width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.login-user-info { flex: 1; }
+.login-user-name { font-size: 16px; font-weight: 600; }
+.login-user-role { font-size: 12px; opacity: 0.65; margin-top: 1px; }
+
+/* ========== PIN SCREEN ========== */
+#pinScreen {
+  position: fixed; inset: 0; background: linear-gradient(160deg, #6B1088 0%, #8B20AC 50%, #A855C8 100%);
+  display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 1001;
+  padding: 32px;
+}
+.pin-avatar { width: 64px; height: 64px; border-radius: 50%; background: rgba(255,255,255,0.2); display: flex; align-items: center; justify-content: center; font-size: 30px; margin-bottom: 12px; }
+.pin-name { font-size: 20px; font-weight: 700; color: white; margin-bottom: 32px; }
+.pin-dots { display: flex; gap: 18px; margin-bottom: 10px; }
+.pin-dot { width: 13px; height: 13px; border-radius: 50%; border: 2px solid rgba(255,255,255,0.5); background: transparent; transition: all 0.15s; }
+.pin-dot.filled { background: white; border-color: white; transform: scale(1.1); }
+.pin-error { color: #FF8A80; font-size: 14px; margin-bottom: 28px; min-height: 20px; text-align: center; }
+.pin-grid { display: grid; grid-template-columns: repeat(3, 76px); gap: 14px; }
+.pin-btn {
+  width: 76px; height: 76px; border-radius: 50%; background: rgba(255,255,255,0.14);
+  border: none; color: white; font-size: 26px; font-weight: 300; cursor: pointer;
+  transition: background 0.1s, transform 0.1s; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  line-height: 1;
+}
+.pin-btn:active { background: rgba(255,255,255,0.32); transform: scale(0.93); }
+.pin-btn.empty { background: transparent !important; cursor: default; }
+.pin-btn-sub { font-size: 9px; letter-spacing: 1px; opacity: 0.6; margin-top: 2px; }
+.pin-back-btn { margin-top: 28px; color: rgba(255,255,255,0.65); font-size: 15px; background: none; border: none; cursor: pointer; padding: 10px 24px; }
+
+/* ========== APP SHELL ========== */
+#app { position: fixed; inset: 0; display: none; flex-direction: column; }
+#appHeader {
+  height: var(--header-height); background: var(--purple);
+  display: flex; align-items: center; padding: 0 8px 0 16px; flex-shrink: 0;
+  padding-top: env(safe-area-inset-top, 0);
+}
+.app-title { color: white; font-size: 20px; font-weight: 800; flex: 1; letter-spacing: 1px; }
+.header-btn { background: none; border: none; color: rgba(255,255,255,0.85); font-size: 22px; cursor: pointer; padding: 10px; border-radius: 50%; transition: background 0.15s; }
+.header-btn:active { background: rgba(255,255,255,0.15); }
+
+#tabContent { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+
+/* ========== TAB BAR ========== */
+#tabBar {
+  background: white; border-top: 1px solid var(--border); display: flex; flex-shrink: 0;
+  padding-bottom: var(--safe-bottom); min-height: var(--tab-height);
+}
+.tab-btn {
+  flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 3px; background: none; border: none; cursor: pointer; color: var(--text-muted);
+  font-size: 10px; font-weight: 500; padding: 8px 4px 6px; position: relative;
+  transition: color 0.2s;
+}
+.tab-icon { font-size: 22px; line-height: 1; }
+.tab-btn.active { color: var(--purple); }
+.tab-btn.active::before { content: ''; position: absolute; top: 0; left: 25%; right: 25%; height: 3px; background: var(--purple); border-radius: 0 0 3px 3px; }
+
+/* ========== TAB PANELS ========== */
+.tab-panel { display: none; flex: 1; flex-direction: column; overflow: hidden; min-height: 0; }
+.tab-panel.active { display: flex; }
+
+/* ========== TAB 1: AGENDA ========== */
+#agendaPanel { background: white; }
+
+/* View toggle */
+.agenda-view-wrap { background: white; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.agenda-seg { display: flex; background: var(--bg); border-radius: 10px; padding: 2px; }
+.agenda-seg-btn { flex: 1; padding: 8px; border: none; background: transparent; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text-muted); transition: all 0.2s; }
+.agenda-seg-btn.active { background: white; color: var(--purple); font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+
+/* Nav bar */
+.agenda-nav-bar { display: flex; align-items: center; padding: 8px; background: white; border-bottom: 1px solid var(--border); flex-shrink: 0; gap: 4px; }
+.agenda-nav-btn { background: none; border: none; font-size: 26px; cursor: pointer; color: var(--purple); padding: 4px 8px; line-height: 1; flex-shrink: 0; }
+.agenda-nav-lbl { flex: 1; text-align: center; font-size: 15px; font-weight: 700; }
+.agenda-today-btn { background: var(--purple); color: white; border: none; border-radius: 18px; padding: 7px 14px; font-size: 13px; cursor: pointer; font-weight: 600; white-space: nowrap; flex-shrink: 0; }
+
+/* Content area */
+.agenda-content { flex: 1; overflow-y: auto; display: flex; flex-direction: column; min-height: 0; }
+
+/* Month calendar */
+.cal-month-header { display: grid; grid-template-columns: repeat(7, 1fr); background: #fafafa; border-bottom: 1px solid #f0f0f0; flex-shrink: 0; }
+.cal-weekday { text-align: center; font-size: 11px; color: var(--text-muted); padding: 6px 0; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.cal-weekday.sun { color: #e53935; }
+.cal-weekday.sat { color: #1565c0; }
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); flex-shrink: 0; }
+.cal-day { padding: 4px 2px 6px; text-align: center; cursor: pointer; border-top: 1px solid #f5f5f5; display: flex; flex-direction: column; align-items: center; transition: background 0.1s; min-height: 50px; }
+.cal-day:active { background: #f0e6f6; }
+.cal-day.selected { background: #f3e8fa; }
+.day-num { font-size: 15px; font-weight: 400; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.cal-day.today .day-num { background: var(--purple); color: white !important; font-weight: 700; }
+.cal-day.other-month .day-num { color: #c8c8c8; }
+.cal-day.sat .day-num { color: #1565c0; }
+.cal-day.sun .day-num { color: #e53935; }
+.day-dots { display: flex; gap: 3px; justify-content: center; margin-top: 1px; }
+.day-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--purple); }
+.cal-day.other-month .day-dot { background: #ccc; }
+
+/* Week strip */
+.week-strip { display: grid; grid-template-columns: repeat(7, 1fr); background: white; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.week-strip-day { display: flex; flex-direction: column; align-items: center; padding: 8px 2px 6px; cursor: pointer; gap: 3px; transition: background 0.1s; }
+.week-strip-day:active { background: #f0e6f6; }
+.week-strip-day.selected { background: #f3e8fa; }
+.week-strip-name { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; }
+.week-strip-num { font-size: 17px; font-weight: 400; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.week-strip-day.today .week-strip-num { background: var(--purple); color: white !important; font-weight: 700; }
+.week-strip-day.sat .week-strip-name { color: #1565c0; }
+.week-strip-day.sat .week-strip-num { color: #1565c0; }
+.week-strip-day.sun .week-strip-name { color: #e53935; }
+.week-strip-day.sun .week-strip-num { color: #e53935; }
+.week-strip-dots { display: flex; gap: 2px; justify-content: center; min-height: 6px; }
+.week-strip-dot { width: 4px; height: 4px; border-radius: 50%; background: var(--purple); }
+
+/* Day list (shared between dag/week/maand) */
+.agenda-day-title { padding: 12px 16px 8px; font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; background: white; flex-shrink: 0; }
+.agenda-item { display: flex; padding: 14px 16px; border-bottom: 1px solid #f5f5f5; gap: 12px; cursor: pointer; transition: background 0.1s; }
+.agenda-item:active { background: #f9f0fc; }
+.agenda-item-bar { width: 3px; border-radius: 3px; background: var(--purple); flex-shrink: 0; min-height: 40px; }
+.agenda-item-content { flex: 1; }
+.agenda-item-client { font-size: 16px; font-weight: 700; color: var(--text); }
+.agenda-item-time-range { font-size: 13px; color: var(--purple); font-weight: 600; margin-top: 2px; }
+.agenda-item-desc { font-size: 13px; color: var(--text-muted); margin-top: 3px; }
+.no-items { padding: 32px 16px; text-align: center; color: var(--text-muted); font-size: 15px; }
+
+/* Week overview — all days listed */
+.week-day-block { border-bottom: 1px solid var(--border); }
+.week-day-block-hdr { padding: 10px 16px 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); display: flex; align-items: center; gap: 8px; }
+.week-day-block-hdr.today-hdr { color: var(--purple); }
+.week-day-block-hdr .today-pill { background: var(--purple); color: white; font-size: 10px; border-radius: 8px; padding: 2px 7px; font-weight: 700; }
+
+.add-fab {
+  position: fixed; bottom: calc(var(--tab-height) + var(--safe-bottom) + 16px); right: 20px;
+  width: 56px; height: 56px; border-radius: 50%; background: var(--purple);
+  border: none; color: white; font-size: 30px; cursor: pointer;
+  box-shadow: 0 4px 20px rgba(139,32,172,0.45); display: none; align-items: center; justify-content: center;
+  z-index: 50; transition: transform 0.15s;
+}
+.add-fab:active { transform: scale(0.93); }
+
+/* ========== TAB 2: REGISTRATIE ========== */
+#registratiePanel { background: var(--bg); }
+
+.reg-date-bar {
+  background: white; padding: 10px 12px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.reg-date-nav { background: none; border: none; font-size: 28px; cursor: pointer; padding: 2px 6px; color: var(--purple); line-height: 1; }
+.reg-date-label { flex: 1; text-align: center; }
+.reg-date-main { font-size: 16px; font-weight: 700; display: block; }
+.reg-date-sub { font-size: 12px; color: var(--text-muted); display: block; }
+.reg-today-btn {
+  background: var(--purple); color: white; border: none; border-radius: 20px;
+  padding: 7px 14px; font-size: 13px; cursor: pointer; font-weight: 600; white-space: nowrap;
+  transition: opacity 0.15s;
+}
+.reg-today-btn:active { opacity: 0.8; }
+
+.reg-swipe-area { flex: 1; overflow: hidden; display: flex; flex-direction: column; min-height: 0; }
+.reg-list { flex: 1; overflow-y: auto; padding: 12px; }
+
+.reg-card {
+  background: white; border-radius: 16px; margin-bottom: 10px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07); overflow: hidden; cursor: pointer;
+  transition: transform 0.1s;
+}
+.reg-card:active { transform: scale(0.98); }
+.reg-card-accent { height: 4px; background: var(--purple); }
+.reg-card.done .reg-card-accent { background: var(--green); }
+.reg-card-body { padding: 14px 16px; }
+.reg-card-row1 { display: flex; justify-content: space-between; align-items: flex-start; }
+.reg-card-client { font-size: 16px; font-weight: 700; }
+.reg-card-planned { font-size: 12px; color: var(--text-muted); font-weight: 500; background: var(--bg); padding: 3px 8px; border-radius: 10px; }
+.reg-card-desc { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+.reg-card-status-row { display: flex; align-items: center; margin-top: 10px; gap: 8px; }
+.status-badge {
+  font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 10px;
+  background: #f0e6f6; color: var(--purple);
+}
+.status-badge.done { background: #e8f5e9; color: var(--green); }
+.reg-card-actual-info { font-size: 13px; color: #444; margin-top: 8px; border-top: 1px solid #f5f5f5; padding-top: 8px; }
+.reg-card-actual-row { display: flex; gap: 6px; margin-top: 3px; }
+.reg-card-actual-lbl { color: var(--text-muted); min-width: 72px; font-size: 12px; }
+.reg-card-actual-val { font-size: 13px; font-weight: 500; }
+.no-reg { padding: 48px 16px; text-align: center; color: var(--text-muted); font-size: 15px; }
+
+/* ========== TAB 3: URENOVERZICHT ========== */
+#urenPanel { background: var(--bg); }
+
+.uren-seg-wrap { background: white; padding: 10px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.uren-seg { display: flex; background: var(--bg); border-radius: 10px; padding: 2px; }
+.uren-seg-btn {
+  flex: 1; padding: 7px; border: none; background: transparent; border-radius: 8px;
+  font-size: 14px; font-weight: 500; cursor: pointer; color: var(--text-muted); transition: all 0.2s;
+}
+.uren-seg-btn.active { background: white; color: var(--purple); font-weight: 700; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+
+.uren-nav { display: flex; align-items: center; padding: 10px 12px; background: white; border-bottom: 1px solid var(--border); flex-shrink: 0; }
+.uren-nav-btn { background: none; border: none; font-size: 28px; cursor: pointer; color: var(--purple); padding: 2px 6px; line-height: 1; }
+.uren-nav-lbl { flex: 1; text-align: center; font-size: 15px; font-weight: 700; }
+
+.uren-list { flex: 1; overflow-y: auto; padding: 12px; }
+.uren-summary-card {
+  background: linear-gradient(135deg, var(--purple), var(--purple-light));
+  color: white; border-radius: 16px; padding: 18px 20px; margin-bottom: 14px;
+  display: flex; align-items: center; gap: 16px;
+}
+.uren-summary-total { font-size: 34px; font-weight: 800; line-height: 1; }
+.uren-summary-unit { font-size: 14px; opacity: 0.8; margin-top: 2px; }
+.uren-summary-right { font-size: 14px; opacity: 0.85; }
+.uren-summary-right strong { display: block; font-size: 16px; font-weight: 700; }
+
+.uren-date-label { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.8px; margin: 8px 4px 4px; }
+.uren-week-label { font-size: 13px; font-weight: 700; color: var(--purple); background: #f3e8fa; border-radius: 8px; padding: 6px 10px; margin: 14px 0 4px; }
+.uren-entry {
+  background: white; border-radius: 14px; padding: 14px 16px; margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06); display: flex; align-items: flex-start; gap: 12px;
+}
+.uren-entry-bar { width: 4px; border-radius: 4px; background: var(--purple); align-self: stretch; flex-shrink: 0; min-height: 36px; }
+.uren-entry-content { flex: 1; }
+.uren-entry-top { display: flex; justify-content: space-between; align-items: center; }
+.uren-entry-client { font-size: 15px; font-weight: 700; }
+.uren-entry-hours { font-size: 15px; font-weight: 800; color: var(--purple); }
+.uren-entry-time { font-size: 13px; color: var(--text-muted); margin-top: 2px; }
+.uren-entry-notes { font-size: 13px; color: #555; margin-top: 6px; background: var(--bg); border-radius: 8px; padding: 6px 10px; }
+.no-uren { padding: 48px 16px; text-align: center; color: var(--text-muted); font-size: 15px; }
+.uren-entry-by { font-size: 12px; color: var(--text-muted); margin-top: 3px; }
+
+.uren-filter-row {
+  background: white; padding: 10px 12px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+}
+.uren-filter-select {
+  flex: 1; border: 1.5px solid var(--border); border-radius: 10px; padding: 8px 12px;
+  font-size: 14px; font-family: inherit; color: var(--text); background: #fafafa;
+  outline: none; cursor: pointer;
+}
+.uren-filter-select:focus { border-color: var(--purple); }
+.uren-download-btn {
+  background: var(--purple); color: white; border: none; border-radius: 10px;
+  padding: 9px 14px; font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap;
+  display: flex; align-items: center; gap: 5px; transition: opacity 0.15s;
+}
+.uren-download-btn:active { opacity: 0.8; }
+
+/* ========== MODALS ========== */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 400;
+  display: none; align-items: flex-end; justify-content: center;
+  backdrop-filter: blur(2px);
+}
+.modal-overlay.open { display: flex; }
+.modal {
+  background: white; border-radius: 24px 24px 0 0; width: 100%; max-width: 520px;
+  max-height: 92vh; overflow-y: auto;
+  padding-bottom: calc(24px + var(--safe-bottom));
+}
+.modal-handle { width: 36px; height: 4px; background: #d0d0d0; border-radius: 2px; margin: 12px auto 4px; }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 12px 20px 14px; border-bottom: 1px solid var(--border); }
+.modal-title { font-size: 18px; font-weight: 700; }
+.modal-close { background: #f0f0f0; border: none; width: 30px; height: 30px; border-radius: 50%; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; color: #666; }
+.modal-body { padding: 20px; }
+
+.form-group { margin-bottom: 16px; }
+.form-label { font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 6px; display: block; text-transform: uppercase; letter-spacing: 0.5px; }
+.form-input {
+  width: 100%; border: 1.5px solid var(--border); border-radius: 12px;
+  padding: 13px 14px; font-size: 16px; outline: none; background: #fafafa;
+  transition: border-color 0.2s, background 0.2s; color: var(--text);
+  font-family: inherit;
+}
+.form-input:focus { border-color: var(--purple); background: white; }
+.form-input[readonly] { opacity: 0.6; }
+.time-pick { display: flex; align-items: center; gap: 4px; }
+.time-sel {
+  flex: 1; border: 1.5px solid var(--border); border-radius: 12px;
+  padding: 13px 8px; font-size: 18px; font-weight: 600; text-align: center;
+  background: #fafafa; color: var(--text); font-family: inherit;
+  appearance: none; -webkit-appearance: none; cursor: pointer; outline: none;
+}
+.time-sel:focus { border-color: var(--purple); background: white; }
+.time-colon { font-size: 22px; font-weight: 700; color: var(--text-muted); flex-shrink: 0; }
+textarea.form-input { resize: none; line-height: 1.5; }
+.form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+.btn { width: 100%; border: none; border-radius: 14px; padding: 15px; font-size: 16px; font-weight: 700; cursor: pointer; margin-top: 6px; transition: opacity 0.15s, transform 0.1s; font-family: inherit; }
+.btn:active { opacity: 0.85; transform: scale(0.98); }
+.btn-primary { background: var(--purple); color: white; }
+.btn-danger { background: var(--red); color: white; }
+.btn-muted { background: #f0f0f0; color: #666; }
+
+/* ========== SETTINGS ========== */
+#settingsOverlay {
+  position: fixed; inset: 0; background: var(--bg); z-index: 300; display: none; flex-direction: column;
+}
+#settingsOverlay.open { display: flex; }
+.settings-hdr {
+  display: flex; align-items: center; background: var(--purple); padding: 0 8px 0 4px;
+  height: calc(var(--header-height) + env(safe-area-inset-top, 0));
+  padding-top: env(safe-area-inset-top, 0); flex-shrink: 0;
+}
+.settings-hdr-title { color: white; font-size: 18px; font-weight: 700; flex: 1; }
+.settings-body { flex: 1; overflow-y: auto; padding: 16px; }
+.settings-section { margin-bottom: 24px; }
+.settings-section-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; padding-left: 4px; }
+.settings-card { background: white; border-radius: 16px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+.settings-row {
+  display: flex; align-items: center; padding: 14px 16px; border-bottom: 1px solid #f5f5f5;
+}
+.settings-row:last-child { border-bottom: none; }
+.settings-row-icon { width: 34px; height: 34px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; margin-right: 12px; flex-shrink: 0; }
+.settings-row-info { flex: 1; }
+.settings-row-title { font-size: 15px; font-weight: 600; }
+.settings-row-sub { font-size: 12px; color: var(--text-muted); margin-top: 1px; }
+.settings-row-btn { background: #f0f0f0; border: none; border-radius: 8px; padding: 6px 14px; font-size: 13px; font-weight: 600; cursor: pointer; color: var(--text); }
+.settings-row-btn.danger { background: #fdecea; color: var(--red); }
+.settings-add-btn { width: 100%; background: var(--purple); color: white; border: none; border-radius: 14px; padding: 14px; font-size: 15px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+
+/* ========== TABLET / IPAD ========== */
+@media (min-width: 600px) {
+  #loginScreen { background: linear-gradient(160deg, #6B1088 0%, #8B20AC 100%); }
+  .login-users { max-width: 360px; }
+
+  /* Agenda: wider nav label */
+  .agenda-nav-lbl { font-size: 17px; }
+
+  /* Larger tap targets */
+  .tab-btn { font-size: 12px; }
+  .tab-icon { font-size: 26px; }
+  #tabBar { height: 72px; }
+  .add-fab { bottom: calc(72px + var(--safe-bottom) + 20px); }
+
+  .reg-card, .uren-entry { border-radius: 18px; }
+
+  /* Max-width for large iPads / landscape */
+  .modal { max-width: 560px; }
+}
+
+@media (min-width: 900px) {
+  /* Large iPad / landscape */
+  #app { max-width: 900px; margin: 0 auto; box-shadow: 0 0 40px rgba(0,0,0,0.15); }
+  #addFab { right: calc(50% - 450px + 20px); }
+}
+
+/* ========== TOAST ========== */
+.toast {
+  position: fixed; bottom: calc(var(--tab-height) + var(--safe-bottom) + 12px); left: 50%;
+  transform: translateX(-50%) translateY(8px); background: #222;
+  color: white; padding: 11px 22px; border-radius: 24px; font-size: 14px; font-weight: 500;
+  z-index: 999; opacity: 0; transition: opacity 0.25s, transform 0.25s; pointer-events: none; white-space: nowrap;
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ==================== LOGIN ==================== -->
+<div id="loginScreen">
+  <div class="login-logo">Modiko</div>
+  <div class="login-tagline">PLANNING & REGISTRATIE</div>
+  <div class="login-label">Selecteer je naam</div>
+  <div class="login-users" id="loginUsers">
+    <div style="color:rgba(255,255,255,0.5);text-align:center;padding:20px;font-size:14px;">Laden…</div>
+  </div>
+</div>
+
+<!-- ==================== PIN SCREEN ==================== -->
+<div id="pinScreen">
+  <div class="pin-avatar" id="pinAvatar">👤</div>
+  <div class="pin-name" id="pinName"></div>
+  <div class="pin-error" id="pinError"></div>
+  <div class="pin-dots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-grid">
+    <button class="pin-btn" onclick="pinPress('1')">1<span class="pin-btn-sub"></span></button>
+    <button class="pin-btn" onclick="pinPress('2')">2<span class="pin-btn-sub">ABC</span></button>
+    <button class="pin-btn" onclick="pinPress('3')">3<span class="pin-btn-sub">DEF</span></button>
+    <button class="pin-btn" onclick="pinPress('4')">4<span class="pin-btn-sub">GHI</span></button>
+    <button class="pin-btn" onclick="pinPress('5')">5<span class="pin-btn-sub">JKL</span></button>
+    <button class="pin-btn" onclick="pinPress('6')">6<span class="pin-btn-sub">MNO</span></button>
+    <button class="pin-btn" onclick="pinPress('7')">7<span class="pin-btn-sub">PQRS</span></button>
+    <button class="pin-btn" onclick="pinPress('8')">8<span class="pin-btn-sub">TUV</span></button>
+    <button class="pin-btn" onclick="pinPress('9')">9<span class="pin-btn-sub">WXYZ</span></button>
+    <button class="pin-btn empty"></button>
+    <button class="pin-btn" onclick="pinPress('0')">0</button>
+    <button class="pin-btn" onclick="pinBack()">⌫</button>
+  </div>
+  <button class="pin-back-btn" onclick="showLogin()">← Andere gebruiker</button>
+</div>
+
+<!-- ==================== APP ==================== -->
+<div id="app">
+  <div id="appHeader">
+    <span class="app-title">Modiko</span>
+    <button class="header-btn" id="settingsBtn" onclick="openSettings()" title="Instellingen">⚙️</button>
+  </div>
+
+  <div id="tabContent">
+
+    <!-- TAB 1: AGENDA -->
+    <div id="agendaPanel" class="tab-panel active">
+      <!-- View toggle -->
+      <div class="agenda-view-wrap">
+        <div class="agenda-seg">
+          <button class="agenda-seg-btn" id="segDag" onclick="agendaSetView('dag')">Dag</button>
+          <button class="agenda-seg-btn" id="segWeek" onclick="agendaSetView('week')">Week</button>
+          <button class="agenda-seg-btn active" id="segMaand" onclick="agendaSetView('maand')">Maand</button>
+        </div>
+      </div>
+      <!-- Nav bar -->
+      <div class="agenda-nav-bar">
+        <button class="agenda-nav-btn" onclick="agendaNav(-1)">‹</button>
+        <span class="agenda-nav-lbl" id="agendaNavLbl"></span>
+        <button class="agenda-today-btn" onclick="agendaNavToday()">Vandaag</button>
+        <button class="agenda-nav-btn" onclick="agendaNav(1)">›</button>
+      </div>
+      <!-- Dynamic content -->
+      <div class="agenda-content" id="agendaContent"></div>
+    </div>
+
+    <!-- TAB 2: REGISTRATIE -->
+    <div id="registratiePanel" class="tab-panel">
+      <div class="reg-date-bar">
+        <button class="reg-date-nav" onclick="regNav(-1)">‹</button>
+        <div class="reg-date-label" id="regDateLabel">
+          <span class="reg-date-main"></span>
+          <span class="reg-date-sub"></span>
+        </div>
+        <button class="reg-today-btn" onclick="regToday()">Vandaag</button>
+        <button class="reg-date-nav" onclick="regNav(1)">›</button>
+      </div>
+      <div class="reg-swipe-area" id="regSwipeArea">
+        <div class="reg-list" id="regList"></div>
+      </div>
+    </div>
+
+    <!-- TAB 3: URENOVERZICHT -->
+    <div id="urenPanel" class="tab-panel">
+      <div class="uren-seg-wrap">
+        <div class="uren-seg">
+          <button class="uren-seg-btn active" onclick="urenMode('dag',this)">Dag</button>
+          <button class="uren-seg-btn" onclick="urenMode('week',this)">Week</button>
+          <button class="uren-seg-btn" onclick="urenMode('maand',this)">Maand</button>
+        </div>
+      </div>
+      <div class="uren-nav">
+        <button class="uren-nav-btn" onclick="urenNav(-1)">‹</button>
+        <span class="uren-nav-lbl" id="urenNavLbl"></span>
+        <button class="uren-nav-btn" onclick="urenNav(1)">›</button>
+      </div>
+      <div class="uren-filter-row">
+        <select class="uren-filter-select" id="urenFilterUser" onchange="renderUren()">
+          <option value="">Alle medewerkers</option>
+        </select>
+        <button class="uren-download-btn" onclick="downloadPDF()">⬇ PDF</button>
+      </div>
+      <div class="uren-list" id="urenList"></div>
+    </div>
+
+  </div>
+
+  <div id="tabBar">
+    <button class="tab-btn active" onclick="switchTab('agenda',this)">
+      <span class="tab-icon">📅</span><span>Agenda</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('registratie',this)">
+      <span class="tab-icon">✏️</span><span>Registratie</span>
+    </button>
+    <button class="tab-btn" onclick="switchTab('uren',this)">
+      <span class="tab-icon">⏱️</span><span>Uren</span>
+    </button>
+  </div>
+</div>
+
+<!-- FAB -->
+<button class="add-fab" id="addFab" onclick="openAfspraakModal(null)">+</button>
+
+<!-- MODAL: Afspraak -->
+<div class="modal-overlay" id="modalAfspraak">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="modalAfspraakTitle">Nieuwe afspraak</span>
+      <button class="modal-close" onclick="closeModal('modalAfspraak')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Klantnaam *</label>
+        <input class="form-input" id="fKlant" type="text" placeholder="Naam van de klant" autocomplete="off">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Starttijd</label>
+          <div class="time-pick" id="fStartP"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Eindtijd</label>
+          <div class="time-pick" id="fEindP"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Omschrijving</label>
+        <textarea class="form-input" id="fOmschrijving" rows="3" placeholder="Optionele omschrijving"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="saveAfspraak()">Opslaan</button>
+      <button class="btn btn-danger" id="btnDeleteAfspraak" onclick="deleteAfspraak()" style="display:none;">Verwijderen</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: Registratie -->
+<div class="modal-overlay" id="modalReg">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title" id="modalRegTitle">Registratie</span>
+      <button class="modal-close" onclick="closeModal('modalReg')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Klant</label>
+        <input class="form-input" id="rKlant" type="text" readonly>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Werkelijke starttijd</label>
+          <div class="time-pick" id="rStartP"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Werkelijke eindtijd</label>
+          <div class="time-pick" id="rEindP"></div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Opmerkingen</label>
+        <textarea class="form-input" id="rNotes" rows="3" placeholder="Notities, bijzonderheden…"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="saveReg()">Registratie opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS OVERLAY -->
+<div id="settingsOverlay">
+  <div class="settings-hdr">
+    <button class="header-btn" onclick="closeSettings()">‹</button>
+    <span class="settings-hdr-title">Instellingen</span>
+  </div>
+  <div class="settings-body" id="settingsBody"></div>
+</div>
+
+<!-- MODAL: Subgebruiker aanmaken -->
+<div class="modal-overlay" id="modalSubUser">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">Subgebruiker aanmaken</span>
+      <button class="modal-close" onclick="closeModal('modalSubUser')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Naam</label>
+        <input class="form-input" id="suNaam" type="text" placeholder="Naam van de medewerker" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">PIN code (4 cijfers)</label>
+        <input class="form-input" id="suPin" type="number" placeholder="0000" inputmode="numeric" max="9999" min="0">
+      </div>
+      <button class="btn btn-primary" onclick="saveSubUser()">Aanmaken</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: PIN wijzigen -->
+<div class="modal-overlay" id="modalPinChange">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-header">
+      <span class="modal-title">PIN wijzigen</span>
+      <button class="modal-close" onclick="closeModal('modalPinChange')">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label class="form-label">Nieuwe PIN (4 cijfers)</label>
+        <input class="form-input" id="newPin1" type="number" placeholder="0000" inputmode="numeric">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Bevestig PIN</label>
+        <input class="form-input" id="newPin2" type="number" placeholder="0000" inputmode="numeric">
+      </div>
+      <button class="btn btn-primary" onclick="savePinChange()">PIN opslaan</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<!-- ==================== SCRIPT ==================== -->
+<script>
+// ============================================================
+// FIREBASE CONFIG — VERVANG HIERONDER MET JOUW EIGEN CONFIG
+// ============================================================
+const firebaseConfig = {
+  apiKey: "AIzaSyB9sbFdc5puZ-4xcdtDiinHxH8N7jiG_CE",
+  authDomain: "modiko-2026.firebaseapp.com",
+  projectId: "modiko-2026",
+  storageBucket: "modiko-2026.firebasestorage.app",
+  messagingSenderId: "906841797632",
+  appId: "1:906841797632:web:a3d42f6dc48f5a931b54e5"
+};
+// ============================================================
+
+firebase.initializeApp(firebaseConfig);
+const db = firebase.firestore();
+
+// ─── State ───────────────────────────────────────────────
+let currentUser = null;
+let allUsers = [];
+let allAfspraken = [];
+let booted = false;
+let bootFlags = { users: false, afspraken: false };
+
+// Agenda
+let calYear = new Date().getFullYear();
+let calMonth = new Date().getMonth();
+let calSelected = ds(new Date());
+let agendaView = 'maand'; // 'dag' | 'week' | 'maand'
+
+// Registratie
+let regDate = ds(new Date());
+let openRegId = null;
+
+// Uren
+let urenView = 'dag';
+let urenRef = new Date();
+
+// Afspraak modal
+let editAfspraakId = null;
+
+// ─── Helpers ─────────────────────────────────────────────
+const MONTHS = ['januari','februari','maart','april','mei','juni','juli','augustus','september','oktober','november','december'];
+const MONTHS_SHORT = ['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+const DAYS = ['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+const DAYS_SHORT = ['zo','ma','di','wo','do','vr','za'];
+
+function ds(d) {
+  return d.getFullYear() + '-' + pad(d.getMonth()+1) + '-' + pad(d.getDate());
+}
+function pd(s) {
+  const [y,m,d] = s.split('-').map(Number);
+  return new Date(y,m-1,d);
+}
+function pad(n) { return String(n).padStart(2,'0'); }
+function fmtDateLong(s) {
+  const d = pd(s);
+  return DAYS[d.getDay()] + ' ' + d.getDate() + ' ' + MONTHS[d.getMonth()] + ' ' + d.getFullYear();
+}
+function fmtDateMedium(s) {
+  const d = pd(s);
+  return d.getDate() + ' ' + MONTHS[d.getMonth()];
+}
+// ─── Time picker helpers ──────────────────────────────────
+function buildTimePicker(wrapId) {
+  const wrap = document.getElementById(wrapId);
+  if (!wrap) return;
+  let hOpts = '<option value="">--</option>', mOpts = '<option value="">--</option>';
+  for (let h=0;h<24;h++) hOpts += `<option value="${pad(h)}">${pad(h)}</option>`;
+  for (let m=0;m<60;m++) mOpts += `<option value="${pad(m)}">${pad(m)}</option>`;
+  wrap.innerHTML = `<select class="time-sel" id="${wrapId}H">${hOpts}</select><span class="time-colon">:</span><select class="time-sel" id="${wrapId}M">${mOpts}</select>`;
+}
+function getTP(wrapId) {
+  const h = document.getElementById(wrapId+'H')?.value;
+  const m = document.getElementById(wrapId+'M')?.value;
+  return (h && m) ? h+':'+m : '';
+}
+function setTP(wrapId, val) {
+  const hEl = document.getElementById(wrapId+'H');
+  const mEl = document.getElementById(wrapId+'M');
+  if (!hEl || !mEl) return;
+  if (!val) { hEl.value=''; mEl.value=''; return; }
+  const [h,m] = val.split(':');
+  hEl.value = pad(parseInt(h)||0);
+  mEl.value = pad(parseInt(m)||0);
+}
+
+function isoWeek(date) {
+  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const day = d.getUTCDay() || 7; // Mon=1..Sun=7
+  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+}
+function calcH(s, e) {
+  if (!s||!e) return 0;
+  const [sh,sm]=s.split(':').map(Number), [eh,em]=e.split(':').map(Number);
+  return ((eh*60+em)-(sh*60+sm))/60;
+}
+function fmtH(h) {
+  if (h<=0) return '0:00';
+  const hrs=Math.floor(h), mins=Math.round((h-hrs)*60);
+  return hrs+':'+pad(mins);
+}
+function uid() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function toast(msg) {
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2500);
+}
+function isHoofd() { return currentUser?.rol==='hoofd'; }
+
+// ─── Firebase listeners ───────────────────────────────────
+db.collection('gebruikers').onSnapshot(snap => {
+  allUsers = snap.docs.map(d=>({id:d.id,...d.data()}));
+  bootFlags.users = true;
+  if (!booted) checkBoot();
+  else {
+    renderLoginUsers();
+    if (document.getElementById('settingsOverlay').classList.contains('open')) renderSettings();
+  }
+});
+
+db.collection('afspraken').orderBy('datum').onSnapshot(snap => {
+  allAfspraken = snap.docs.map(d=>({id:d.id,...d.data()}));
+  bootFlags.afspraken = true;
+  if (!booted) checkBoot();
+  else { renderAgenda(); renderReg(); renderUren(); }
+});
+
+function checkBoot() {
+  if (bootFlags.users && bootFlags.afspraken) {
+    booted = true;
+    seedUsers();
+    renderLoginUsers();
+  }
+}
+
+async function seedUsers() {
+  if (allUsers.length > 0) return;
+  const id1=uid();
+  await db.collection('gebruikers').doc(id1).set({naam:'Gerhard Kok',pin:'1234',rol:'hoofd'});
+}
+
+// ─── Login ────────────────────────────────────────────────
+function renderLoginUsers() {
+  const el = document.getElementById('loginUsers');
+  const sorted = [...allUsers].sort((a,b)=>a.naam.localeCompare(b.naam));
+  el.innerHTML = sorted.map(u=>`
+    <button class="login-user-btn" onclick='selectUser(${JSON.stringify(u.id)})'>
+      <div class="login-user-icon">👤</div>
+      <div class="login-user-info">
+        <div class="login-user-name">${u.naam}</div>
+      </div>
+    </button>`).join('');
+}
+
+let pinTarget = null, pinEntry = '';
+
+function selectUser(id) {
+  pinTarget = allUsers.find(u=>u.id===id);
+  if (!pinTarget) return;
+  pinEntry='';
+  document.getElementById('pinName').textContent = pinTarget.naam;
+  document.getElementById('pinAvatar').textContent = '👤';
+  document.getElementById('pinError').textContent='';
+  updateDots();
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('pinScreen').style.display='flex';
+}
+
+function showLogin() {
+  pinEntry=''; pinTarget=null;
+  document.getElementById('pinScreen').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+}
+
+function pinPress(d) {
+  if (pinEntry.length>=4) return;
+  pinEntry+=d; updateDots();
+  if (pinEntry.length===4) setTimeout(checkPin,200);
+}
+function pinBack() { pinEntry=pinEntry.slice(0,-1); updateDots(); }
+function updateDots() {
+  for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled',i<pinEntry.length);
+}
+function checkPin() {
+  if (pinEntry===pinTarget.pin) {
+    currentUser=pinTarget;
+    document.getElementById('pinScreen').style.display='none';
+    document.getElementById('app').style.display='flex';
+    document.getElementById('settingsBtn').style.display='';
+    initApp();
+  } else {
+    document.getElementById('pinError').textContent='Onjuiste PIN. Probeer opnieuw.';
+    pinEntry=''; updateDots();
+  }
+}
+
+function logout() {
+  currentUser=null;
+  document.getElementById('app').style.display='none';
+  document.getElementById('addFab').style.display='none';
+  document.getElementById('loginScreen').style.display='flex';
+  closeSettings();
+}
+
+// ─── App init ─────────────────────────────────────────────
+function initApp() {
+  calYear=new Date().getFullYear(); calMonth=new Date().getMonth(); calSelected=ds(new Date()); agendaView='maand';
+  regDate=ds(new Date()); urenRef=new Date();
+  buildTimePicker('fStartP'); buildTimePicker('fEindP');
+  buildTimePicker('rStartP'); buildTimePicker('rEindP');
+  switchTab('agenda', document.querySelector('.tab-btn'));
+  scheduleMidnight();
+}
+
+// ─── Tabs ─────────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  const panels = {agenda:'agendaPanel',registratie:'registratiePanel',uren:'urenPanel'};
+  document.getElementById(panels[name]).classList.add('active');
+  btn.classList.add('active');
+
+  const fab = document.getElementById('addFab');
+  fab.style.display = (name==='agenda' && isHoofd()) ? 'flex' : 'none';
+
+  if (name==='agenda')      { renderAgenda(); }
+  if (name==='registratie') renderReg();
+  if (name==='uren')        renderUren();
+}
+
+// ─── AGENDA ──────────────────────────────────────────────
+const WEEK_DAYS = ['Ma','Di','Wo','Do','Vr','Za','Zo']; // Mon=0
+
+function agendaSetView(view) {
+  agendaView = view;
+  ['dag','week','maand'].forEach(v => document.getElementById('seg'+v.charAt(0).toUpperCase()+v.slice(1)).classList.remove('active'));
+  document.getElementById('seg'+view.charAt(0).toUpperCase()+view.slice(1)).classList.add('active');
+  renderAgenda();
+}
+
+function agendaNav(dir) {
+  if (agendaView === 'dag') {
+    const d = pd(calSelected); d.setDate(d.getDate()+dir);
+    calSelected = ds(d);
+  } else if (agendaView === 'week') {
+    const d = pd(calSelected); d.setDate(d.getDate()+dir*7);
+    calSelected = ds(d);
+  } else {
+    calMonth += dir;
+    if (calMonth>11){calMonth=0;calYear++;}
+    if (calMonth<0){calMonth=11;calYear--;}
+    // keep calSelected in this month
+    const sel = pd(calSelected);
+    if (sel.getMonth()!==calMonth||sel.getFullYear()!==calYear) {
+      calSelected = calYear+'-'+pad(calMonth+1)+'-01';
+    }
+  }
+  renderAgenda();
+}
+
+function agendaNavToday() {
+  const today = new Date();
+  calYear = today.getFullYear(); calMonth = today.getMonth();
+  calSelected = ds(today);
+  renderAgenda();
+}
+
+function renderAgenda() {
+  if (agendaView==='dag')   renderAgendaDag();
+  else if (agendaView==='week') renderAgendaWeek();
+  else renderAgendaMaand();
+}
+
+// helper: item HTML
+function agendaItemHtml(a, showDate) {
+  const click = isHoofd() ? `openAfspraakModal('${a.id}')` : '';
+  const cursor = isHoofd() ? '' : 'cursor:default';
+  return `<div class="agenda-item" onclick="${click}" style="${cursor}">
+    <div class="agenda-item-bar"></div>
+    <div class="agenda-item-content">
+      ${showDate?`<div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">${fmtDateLong(a.datum)}</div>`:''}
+      <div class="agenda-item-client">${a.klantnaam||'Onbekend'}</div>
+      ${a.startTijd?`<div class="agenda-item-time-range">${a.startTijd} – ${a.eindTijd||'?'}</div>`:''}
+      ${a.omschrijving?`<div class="agenda-item-desc">${a.omschrijving}</div>`:''}
+    </div>
+  </div>`;
+}
+
+// ── DAG VIEW ──
+function renderAgendaDag() {
+  document.getElementById('agendaNavLbl').textContent = fmtDateLong(calSelected);
+  const items = allAfspraken.filter(a=>a.datum===calSelected).sort((a,b)=>(a.startTijd||'').localeCompare(b.startTijd||''));
+  const content = document.getElementById('agendaContent');
+  content.innerHTML = items.length===0
+    ? '<div class="no-items">Geen afspraken op deze dag</div>'
+    : items.map(a=>agendaItemHtml(a,false)).join('');
+}
+
+// ── WEEK VIEW ──
+function renderAgendaWeek() {
+  const sel = pd(calSelected);
+  const dow = (sel.getDay()+6)%7; // Mon=0
+  const mon = new Date(sel); mon.setDate(sel.getDate()-dow);
+  const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+
+  // Nav label
+  const sameYear = mon.getFullYear()===sun.getFullYear();
+  const sameMonth = sameYear && mon.getMonth()===sun.getMonth();
+  let lbl;
+  if (sameMonth) lbl = mon.getDate()+' – '+sun.getDate()+' '+MONTHS_SHORT[sun.getMonth()]+' '+sun.getFullYear();
+  else if (sameYear) lbl = mon.getDate()+' '+MONTHS_SHORT[mon.getMonth()]+' – '+sun.getDate()+' '+MONTHS_SHORT[sun.getMonth()]+' '+sun.getFullYear();
+  else lbl = mon.getDate()+' '+MONTHS_SHORT[mon.getMonth()]+' '+mon.getFullYear()+' – '+sun.getDate()+' '+MONTHS_SHORT[sun.getMonth()]+' '+sun.getFullYear();
+  document.getElementById('agendaNavLbl').textContent = lbl;
+
+  const today = ds(new Date());
+
+  // Strip
+  let stripHtml = '<div class="week-strip">';
+  for (let i=0;i<7;i++) {
+    const d = new Date(mon); d.setDate(mon.getDate()+i);
+    const dStr = ds(d);
+    const dotCount = Math.min(allAfspraken.filter(a=>a.datum===dStr).length, 3);
+    const dayDow = d.getDay(); // 0=Sun
+    let cls = 'week-strip-day';
+    if (dStr===today) cls+=' today';
+    if (dStr===calSelected) cls+=' selected';
+    if (dayDow===6) cls+=' sat';
+    if (dayDow===0) cls+=' sun';
+    const dots = Array(dotCount).fill('<div class="week-strip-dot"></div>').join('');
+    stripHtml += `<div class="${cls}" onclick="agendaWeekSelectDay('${dStr}')">
+      <span class="week-strip-name">${WEEK_DAYS[i]}</span>
+      <span class="week-strip-num">${d.getDate()}</span>
+      <div class="week-strip-dots">${dots}</div>
+    </div>`;
+  }
+  stripHtml += '</div>';
+
+  // Selected day items
+  const items = allAfspraken.filter(a=>a.datum===calSelected).sort((a,b)=>(a.startTijd||'').localeCompare(b.startTijd||''));
+  const dayHtml = `<div class="agenda-day-title">${fmtDateLong(calSelected)}</div>`
+    + (items.length===0 ? '<div class="no-items">Geen afspraken op deze dag</div>' : items.map(a=>agendaItemHtml(a,false)).join(''));
+
+  document.getElementById('agendaContent').innerHTML = `
+    <div style="flex-shrink:0;">${stripHtml}</div>
+    <div style="flex:1;overflow-y:auto;">${dayHtml}</div>`;
+}
+
+function agendaWeekSelectDay(date) {
+  calSelected = date;
+  renderAgendaWeek();
+}
+
+// ── MAAND VIEW ──
+function renderAgendaMaand() {
+  document.getElementById('agendaNavLbl').textContent = MONTHS[calMonth]+' '+calYear;
+  const today = ds(new Date());
+
+  const firstDow = (new Date(calYear,calMonth,1).getDay()+6)%7; // Mon=0
+  const daysInMo = new Date(calYear,calMonth+1,0).getDate();
+  const prevDays  = new Date(calYear,calMonth,0).getDate();
+  const total = Math.ceil((firstDow+daysInMo)/7)*7;
+
+  // Weekday header
+  let html = `<div class="cal-month-header">
+    <div class="cal-weekday">Ma</div><div class="cal-weekday">Di</div><div class="cal-weekday">Wo</div>
+    <div class="cal-weekday">Do</div><div class="cal-weekday">Vr</div>
+    <div class="cal-weekday sat">Za</div><div class="cal-weekday sun">Zo</div>
+  </div><div class="cal-grid">`;
+
+  for (let i=0;i<total;i++) {
+    let d, mo=calMonth, yr=calYear, other=false;
+    if (i<firstDow){ d=prevDays-(firstDow-1-i); mo=calMonth-1; if(mo<0){mo=11;yr--;} other=true; }
+    else { d=i-firstDow+1; if(d>daysInMo){d-=daysInMo;mo=calMonth+1;if(mo>11){mo=0;yr++;}other=true;} }
+    const date = yr+'-'+pad(mo+1)+'-'+pad(d);
+    const dow = new Date(yr,mo,d).getDay();
+    const isSat=dow===6, isSun=dow===0;
+    const dayA = allAfspraken.filter(a=>a.datum===date);
+    const dots = dayA.length>0 ? '<div class="day-dots">'+Array(Math.min(dayA.length,3)).fill('<div class="day-dot"></div>').join('')+'</div>' : '';
+    let cls='cal-day';
+    if(other) cls+=' other-month';
+    if(isSat) cls+=' sat';
+    if(isSun) cls+=' sun';
+    if(date===today) cls+=' today';
+    if(date===calSelected) cls+=' selected';
+    html+=`<div class="${cls}" onclick="agendaMaandSelect('${date}')"><div class="day-num">${d}</div>${dots}</div>`;
+  }
+  html += '</div>';
+
+  // Day detail below
+  const items = allAfspraken.filter(a=>a.datum===calSelected).sort((a,b)=>(a.startTijd||'').localeCompare(b.startTijd||''));
+  html += `<div style="height:1px;background:var(--border);flex-shrink:0;"></div>`;
+  html += `<div style="flex:1;overflow-y:auto;">`;
+  html += `<div class="agenda-day-title">${fmtDateLong(calSelected)}</div>`;
+  html += items.length===0 ? '<div class="no-items">Geen afspraken op deze dag</div>' : items.map(a=>agendaItemHtml(a,false)).join('');
+  html += '</div>';
+
+  document.getElementById('agendaContent').innerHTML = html;
+}
+
+function agendaMaandSelect(date) {
+  calSelected = date;
+  const d = pd(date);
+  calYear = d.getFullYear(); calMonth = d.getMonth();
+  renderAgendaMaand();
+}
+
+// Afspraak modal
+function openAfspraakModal(id) {
+  editAfspraakId = id;
+  if (id) {
+    const a = allAfspraken.find(x=>x.id===id);
+    if (!a) return;
+    document.getElementById('modalAfspraakTitle').textContent='Afspraak bewerken';
+    document.getElementById('fKlant').value=a.klantnaam||'';
+    setTP('fStartP',a.startTijd||'');
+    setTP('fEindP',a.eindTijd||'');
+    document.getElementById('fOmschrijving').value=a.omschrijving||'';
+    document.getElementById('btnDeleteAfspraak').style.display='block';
+  } else {
+    document.getElementById('modalAfspraakTitle').textContent='Nieuwe afspraak';
+    document.getElementById('fKlant').value='';
+    setTP('fStartP','');
+    setTP('fEindP','');
+    document.getElementById('fOmschrijving').value='';
+    document.getElementById('btnDeleteAfspraak').style.display='none';
+  }
+  openModal('modalAfspraak');
+}
+
+async function saveAfspraak() {
+  const klant = document.getElementById('fKlant').value.trim();
+  if (!klant) { toast('Vul een klantnaam in'); return; }
+  const id = editAfspraakId||uid();
+  const existing = editAfspraakId ? allAfspraken.find(a=>a.id===id)||{} : {};
+  const data = {
+    id, klantnaam: klant, datum: calSelected,
+    startTijd: getTP('fStartP'),
+    eindTijd: getTP('fEindP'),
+    omschrijving: document.getElementById('fOmschrijving').value.trim(),
+    aangemaaktDoor: currentUser.naam,
+    aangemaaktOp: existing.aangemaaktOp||new Date().toISOString(),
+    // keep registration data
+    geregistreerd: existing.geregistreerd||false,
+    actualStartTijd: existing.actualStartTijd||'',
+    actualEindTijd: existing.actualEindTijd||'',
+    regNotes: existing.regNotes||'',
+    geregistreerdDoor: existing.geregistreerdDoor||''
+  };
+  await db.collection('afspraken').doc(id).set(data);
+  closeModal('modalAfspraak');
+  toast(editAfspraakId?'Afspraak bijgewerkt ✓':'Afspraak aangemaakt ✓');
+}
+
+async function deleteAfspraak() {
+  if (!editAfspraakId) return;
+  if (!confirm('Afspraak verwijderen?')) return;
+  await db.collection('afspraken').doc(editAfspraakId).delete();
+  closeModal('modalAfspraak');
+  toast('Afspraak verwijderd');
+}
+
+// ─── REGISTRATIE ──────────────────────────────────────────
+function regNav(dir) {
+  const d=pd(regDate); d.setDate(d.getDate()+dir); regDate=ds(d); renderReg();
+}
+function regToday() { regDate=ds(new Date()); renderReg(); }
+
+function renderReg() {
+  const today=ds(new Date());
+  const lbl=document.getElementById('regDateLabel');
+  const d=pd(regDate);
+  lbl.querySelector('.reg-date-main').textContent = regDate===today?'Vandaag':DAYS[d.getDay()].charAt(0).toUpperCase()+DAYS[d.getDay()].slice(1);
+  lbl.querySelector('.reg-date-sub').textContent = d.getDate()+' '+MONTHS[d.getMonth()]+' '+d.getFullYear();
+
+  const items = allAfspraken.filter(a=>a.datum===regDate).sort((a,b)=>(a.startTijd||'').localeCompare(b.startTijd||''));
+  const list = document.getElementById('regList');
+
+  if (items.length===0) {
+    list.innerHTML='<div class="no-reg">Geen klussen gepland op deze dag</div>';
+    return;
+  }
+
+  list.innerHTML = items.map(a=>{
+    const done=a.geregistreerd;
+    const hours=done?calcH(a.actualStartTijd,a.actualEindTijd):0;
+    return `
+    <div class="reg-card${done?' done':''}" onclick="openRegModal('${a.id}')">
+      <div class="reg-card-accent"></div>
+      <div class="reg-card-body">
+        <div class="reg-card-row1">
+          <span class="reg-card-client">${a.klantnaam}</span>
+          ${a.startTijd?`<span class="reg-card-planned">${a.startTijd}–${a.eindTijd||'?'}</span>`:''}
+        </div>
+        ${a.omschrijving?`<div class="reg-card-desc">${a.omschrijving}</div>`:''}
+        <div class="reg-card-status-row">
+          <span class="status-badge${done?' done':''}">${done?'✓ Geregistreerd':'○ In te vullen'}</span>
+          ${done?`<span style="font-size:13px;color:#555;">${fmtH(hours)} uur</span>`:''}
+        </div>
+        ${done?`
+        <div class="reg-card-actual-info">
+          <div class="reg-card-actual-row">
+            <span class="reg-card-actual-lbl">Werkelijk:</span>
+            <span class="reg-card-actual-val">${a.actualStartTijd} – ${a.actualEindTijd}</span>
+          </div>
+          ${a.regNotes?`<div class="reg-card-actual-row"><span class="reg-card-actual-lbl">Notitie:</span><span class="reg-card-actual-val">${a.regNotes}</span></div>`:''}
+        </div>`:''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openRegModal(id) {
+  openRegId=id;
+  const a=allAfspraken.find(x=>x.id===id); if(!a) return;
+  document.getElementById('modalRegTitle').textContent=a.klantnaam;
+  document.getElementById('rKlant').value=a.klantnaam;
+  setTP('rStartP',a.actualStartTijd||'');
+  setTP('rEindP',a.actualEindTijd||'');
+  document.getElementById('rNotes').value=a.regNotes||'';
+  openModal('modalReg');
+}
+
+async function saveReg() {
+  const start=getTP('rStartP');
+  const eind=getTP('rEindP');
+  const notes=document.getElementById('rNotes').value.trim();
+  if (!start||!eind) { toast('Vul start- en eindtijd in'); return; }
+  await db.collection('afspraken').doc(openRegId).update({
+    geregistreerd:true, actualStartTijd:start, actualEindTijd:eind,
+    regNotes:notes, geregistreerdDoor:currentUser.naam,
+    geregistreerdOp:new Date().toISOString()
+  });
+  closeModal('modalReg');
+  toast('Opgeslagen ✓');
+}
+
+// Swipe – registratie
+let tx=0;
+const sa=document.getElementById('regSwipeArea');
+sa.addEventListener('touchstart',e=>{ tx=e.touches[0].clientX; },{passive:true});
+sa.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-tx;
+  if(Math.abs(dx)>60) regNav(dx<0?1:-1);
+},{passive:true});
+
+// Swipe – agenda
+let agTx=0;
+const agSA=document.getElementById('agendaContent');
+agSA.addEventListener('touchstart',e=>{ agTx=e.touches[0].clientX; },{passive:true});
+agSA.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-agTx;
+  if(Math.abs(dx)>60) agendaNav(dx<0?1:-1);
+},{passive:true});
+
+// Auto-midnight
+function scheduleMidnight() {
+  const now=new Date();
+  const ms=new Date(now.getFullYear(),now.getMonth(),now.getDate()+1)-now;
+  setTimeout(()=>{
+    const today=ds(new Date());
+    if(regDate!==today){ regDate=today; renderReg(); }
+    scheduleMidnight();
+  },ms+500);
+}
+
+// ─── URENOVERZICHT ────────────────────────────────────────
+function urenMode(m, btn) {
+  urenView=m; urenRef=new Date();
+  document.querySelectorAll('.uren-seg-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  renderUren();
+}
+function urenNav(dir) {
+  if(urenView==='dag') urenRef.setDate(urenRef.getDate()+dir);
+  else if(urenView==='week') urenRef.setDate(urenRef.getDate()+dir*7);
+  else urenRef.setMonth(urenRef.getMonth()+dir);
+  renderUren();
+}
+
+function getUrenRange() {
+  const d=new Date(urenRef);
+  if(urenView==='dag') {
+    const s=ds(d); return{s,e:s,lbl:fmtDateLong(s)};
+  } else if(urenView==='week') {
+    const dow=(d.getDay()+6)%7; // Mon=0
+    const mon=new Date(d); mon.setDate(d.getDate()-dow);
+    const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+    return{s:ds(mon),e:ds(sun),lbl:'Week '+isoWeek(mon)+' · '+mon.getDate()+' '+MONTHS_SHORT[mon.getMonth()]+' – '+sun.getDate()+' '+MONTHS_SHORT[sun.getMonth()]+' '+sun.getFullYear()};
+  } else {
+    const start=new Date(d.getFullYear(),d.getMonth(),1);
+    const end=new Date(d.getFullYear(),d.getMonth()+1,0);
+    return{s:ds(start),e:ds(end),lbl:MONTHS[d.getMonth()]+' '+d.getFullYear()};
+  }
+}
+
+function populateUrenFilter() {
+  const sel=document.getElementById('urenFilterUser');
+  if(!sel) return;
+  const current=sel.value;
+  // collect unique names who have registered something
+  const names=[...new Set(allAfspraken.filter(a=>a.geregistreerd&&a.geregistreerdDoor).map(a=>a.geregistreerdDoor))].sort();
+  sel.innerHTML='<option value="">Alle medewerkers</option>'+names.map(n=>`<option value="${n}"${n===current?' selected':''}>${n}</option>`).join('');
+}
+
+function getFilteredUrenItems() {
+  const {s,e}=getUrenRange();
+  const naam=document.getElementById('urenFilterUser')?.value||'';
+  return allAfspraken
+    .filter(a=>a.geregistreerd&&a.datum>=s&&a.datum<=e&&(naam===''||a.geregistreerdDoor===naam))
+    .sort((a,b)=>a.datum.localeCompare(b.datum)||(a.actualStartTijd||'').localeCompare(b.actualStartTijd||''));
+}
+
+function renderUren() {
+  const {lbl}=getUrenRange();
+  document.getElementById('urenNavLbl').textContent=lbl;
+  populateUrenFilter();
+
+  const items=getFilteredUrenItems();
+  const totalH=items.reduce((sum,a)=>sum+calcH(a.actualStartTijd,a.actualEindTijd),0);
+  const list=document.getElementById('urenList');
+
+  if(items.length===0){
+    list.innerHTML='<div class="no-uren">Geen geregistreerde uren in deze periode</div>';
+    return;
+  }
+
+  // Per-persoon subtotalen (voor week/maand)
+  const perPersoon={};
+  items.forEach(a=>{
+    const n=a.geregistreerdDoor||'Onbekend';
+    perPersoon[n]=(perPersoon[n]||0)+calcH(a.actualStartTijd,a.actualEindTijd);
+  });
+
+  let html=`
+    <div class="uren-summary-card">
+      <div><div class="uren-summary-total">${fmtH(totalH)}</div><div class="uren-summary-unit">uur totaal</div></div>
+      <div class="uren-summary-right"><strong>${items.length}</strong>${items.length===1?' klus':' klussen'}</div>
+    </div>`;
+
+  // Per-persoon totalen tonen als meerdere mensen
+  const personen=Object.keys(perPersoon);
+  if(personen.length>1){
+    html+=`<div style="background:white;border-radius:14px;padding:12px 16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.06);">`;
+    html+=`<div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">Per medewerker</div>`;
+    personen.sort().forEach(n=>{
+      html+=`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f5f5f5;">
+        <span style="font-size:14px;font-weight:500;">${n}</span>
+        <span style="font-size:14px;font-weight:700;color:var(--purple);">${fmtH(perPersoon[n])} uur</span>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  let lastDate='', lastWeek=-1;
+  items.forEach(a=>{
+    const h=calcH(a.actualStartTijd,a.actualEindTijd);
+    if(urenView!=='dag'&&a.datum!==lastDate){
+      // Week header in maand view
+      if(urenView==='maand') {
+        const dObj=pd(a.datum);
+        const wk=isoWeek(dObj);
+        if(wk!==lastWeek){
+          // calculate Mon–Sun of this week
+          const dow=(dObj.getDay()+6)%7;
+          const mon=new Date(dObj); mon.setDate(dObj.getDate()-dow);
+          const sun=new Date(mon); sun.setDate(mon.getDate()+6);
+          html+=`<div class="uren-week-label">Week ${wk} &nbsp;·&nbsp; ${mon.getDate()} ${MONTHS_SHORT[mon.getMonth()]} – ${sun.getDate()} ${MONTHS_SHORT[sun.getMonth()]} ${sun.getFullYear()}</div>`;
+          lastWeek=wk;
+        }
+      }
+      html+=`<div class="uren-date-label">${fmtDateMedium(a.datum)} · ${DAYS_SHORT[pd(a.datum).getDay()]}</div>`;
+      lastDate=a.datum;
+    }
+    html+=`
+      <div class="uren-entry">
+        <div class="uren-entry-bar"></div>
+        <div class="uren-entry-content">
+          <div class="uren-entry-top">
+            <span class="uren-entry-client">${a.klantnaam}</span>
+            <span class="uren-entry-hours">${fmtH(h)} uur</span>
+          </div>
+          <div class="uren-entry-time">${a.actualStartTijd} – ${a.actualEindTijd}</div>
+          ${a.regNotes?`<div class="uren-entry-notes">${a.regNotes}</div>`:''}
+          ${a.geregistreerdDoor?`<div class="uren-entry-by">👤 ${a.geregistreerdDoor}</div>`:''}
+        </div>
+      </div>`;
+  });
+  list.innerHTML=html;
+}
+
+// ─── PDF DOWNLOAD ──────────────────────────────────────────
+function downloadPDF() {
+  const {lbl}=getUrenRange();
+  const items=getFilteredUrenItems();
+  const naam=document.getElementById('urenFilterUser')?.value||'';
+  const totalH=items.reduce((sum,a)=>sum+calcH(a.actualStartTijd,a.actualEindTijd),0);
+
+  if(items.length===0){ toast('Geen geregistreerde uren om te downloaden'); return; }
+
+  if(typeof window.jspdf==='undefined'&&typeof jspdf==='undefined'){
+    toast('PDF bibliotheek laden, probeer opnieuw…');
+    return;
+  }
+  const { jsPDF } = window.jspdf||jspdf;
+  const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+  const PW=210, PH=297, M=15;
+  let y=M;
+
+  // Header
+  doc.setFillColor(139,32,172);
+  doc.rect(0,0,PW,24,'F');
+  doc.setTextColor(255,255,255);
+  doc.setFontSize(18); doc.setFont('helvetica','bold');
+  doc.text('Modiko',M,15);
+  doc.setFontSize(10); doc.setFont('helvetica','normal');
+  doc.text('Urenoverzicht',M,21);
+  doc.setFontSize(10);
+  doc.text(lbl+(naam?' · '+naam:''),PW-M,15,{align:'right'});
+  y=34;
+
+  // Summary
+  doc.setTextColor(30,30,30);
+  doc.setFillColor(245,240,250);
+  doc.roundedRect(M,y,PW-2*M,16,3,3,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(12);
+  doc.text(fmtH(totalH)+' uur totaal',M+6,y+7);
+  doc.setFont('helvetica','normal'); doc.setFontSize(10);
+  doc.text(items.length+' klus'+(items.length!==1?'sen':''),M+6,y+13);
+
+  // Per-persoon totalen
+  const perP={};
+  items.forEach(a=>{ const n=a.geregistreerdDoor||'Onbekend'; perP[n]=(perP[n]||0)+calcH(a.actualStartTijd,a.actualEindTijd); });
+  const personen=Object.keys(perP);
+  y+=22;
+  if(personen.length>0){
+    doc.setFont('helvetica','bold'); doc.setFontSize(9); doc.setTextColor(120,80,140);
+    doc.text('PER MEDEWERKER',M,y); y+=4;
+    personen.sort().forEach(n=>{
+      doc.setFont('helvetica','normal'); doc.setFontSize(10); doc.setTextColor(30,30,30);
+      doc.text(n,M,y+4);
+      doc.setFont('helvetica','bold'); doc.setTextColor(139,32,172);
+      doc.text(fmtH(perP[n])+' uur',PW-M,y+4,{align:'right'});
+      doc.setDrawColor(230,230,235); doc.line(M,y+6,PW-M,y+6);
+      y+=8;
+    });
+    y+=4;
+  }
+
+  // Table header
+  y+=4;
+  doc.setFillColor(240,233,248);
+  doc.rect(M,y,PW-2*M,7,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(80,20,100);
+  const cols=[M+2, M+44, M+80, M+108, M+136, M+158];
+  const hdrs=['Datum','Klant','Gepland','Werkelijk','Uren','Door'];
+  hdrs.forEach((h,i)=>doc.text(h,cols[i],y+5));
+  y+=9;
+
+  // Table rows
+  let rowAlt=false;
+  let lastDatum='';
+  items.forEach(a=>{
+    if(y>PH-24){ doc.addPage(); y=M; }
+    if(a.datum!==lastDatum){
+      if(lastDatum!==''){
+        doc.setDrawColor(200,180,220); doc.line(M,y,PW-M,y); y+=1;
+      }
+      lastDatum=a.datum;
+    }
+    if(rowAlt){ doc.setFillColor(252,249,255); doc.rect(M,y,PW-2*M,8,'F'); }
+    doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(30,30,30);
+    const h=calcH(a.actualStartTijd,a.actualEindTijd);
+    doc.text(fmtDateMedium(a.datum),cols[0],y+5.5);
+    doc.text((a.klantnaam||'').slice(0,20),cols[1],y+5.5);
+    doc.text((a.startTijd||'')+' – '+(a.eindTijd||''),cols[2],y+5.5);
+    doc.text((a.actualStartTijd||'')+' – '+(a.actualEindTijd||''),cols[3],y+5.5);
+    doc.setFont('helvetica','bold'); doc.setTextColor(139,32,172);
+    doc.text(fmtH(h),cols[4],y+5.5);
+    doc.setFont('helvetica','normal'); doc.setTextColor(100,100,100);
+    doc.text((a.geregistreerdDoor||'').split(' ')[0],cols[5],y+5.5);
+    if(a.regNotes){
+      y+=8;
+      doc.setTextColor(100,100,100); doc.setFontSize(7);
+      const wrapped=doc.splitTextToSize(a.regNotes,PW-2*M-10);
+      doc.text(wrapped,cols[0]+4,y+3);
+      y+=wrapped.length*4;
+    } else { y+=8; }
+    rowAlt=!rowAlt;
+  });
+
+  // Footer
+  doc.setFillColor(139,32,172);
+  doc.rect(0,PH-10,PW,10,'F');
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(255,255,255);
+  doc.text('Modiko · Gegenereerd op '+new Date().toLocaleDateString('nl-NL'),M,PH-4);
+  doc.text('Pagina 1',PW-M,PH-4,{align:'right'});
+
+  const filename='modiko-uren-'+lbl.replace(/[^a-z0-9]/gi,'-').toLowerCase()+'.pdf';
+  doc.save(filename);
+  toast('PDF gedownload ✓');
+}
+
+// ─── SETTINGS ────────────────────────────────────────────
+function openSettings() {
+  renderSettings();
+  document.getElementById('settingsOverlay').classList.add('open');
+}
+function closeSettings() {
+  document.getElementById('settingsOverlay').classList.remove('open');
+}
+
+function renderSettings() {
+  const subs=allUsers.filter(u=>u.rol==='sub');
+  const hoofd=isHoofd();
+  document.getElementById('settingsBody').innerHTML=`
+    <div style="margin-bottom:20px;">
+      <p style="font-size:15px;color:#444;">Ingelogd als <strong>${currentUser.naam}</strong></p>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-row-icon" style="background:#e8f5e9;">🔄</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">App updaten</div>
+            <div class="settings-row-sub">Herlaad de app om de laatste versie te laden</div>
+          </div>
+          <button class="settings-row-btn" style="background:#e8f5e9;color:#2e7d32;" onclick="applyUpdate()">Update</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">Mijn account</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div class="settings-row-icon" style="background:#f0e6f6;">🔐</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">PIN wijzigen</div>
+            <div class="settings-row-sub">Verander je 4-cijferige pincode</div>
+          </div>
+          <button class="settings-row-btn" onclick="openChangePinModal()">Wijzigen</button>
+        </div>
+        <div class="settings-row">
+          <div class="settings-row-icon" style="background:#fdecea;">🚪</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">Uitloggen</div>
+            <div class="settings-row-sub">Terug naar gebruikersselectie</div>
+          </div>
+          <button class="settings-row-btn danger" onclick="logout()">Uitloggen</button>
+        </div>
+      </div>
+    </div>
+
+    ${hoofd ? `
+    <div class="settings-section">
+      <div class="settings-section-title">Medewerkers (${subs.length})</div>
+      ${subs.length>0?`
+      <div class="settings-card">
+        ${subs.map(u=>`
+        <div class="settings-row">
+          <div class="settings-row-icon" style="background:#f0f0f0;">👤</div>
+          <div class="settings-row-info">
+            <div class="settings-row-title">${u.naam}</div>
+            <div class="settings-row-sub">Kan agenda inzien · registratie &amp; uren bewerken</div>
+          </div>
+          <button class="settings-row-btn danger" onclick="deleteSubUser('${u.id}')">Verwijder</button>
+        </div>`).join('')}
+      </div>`:''}
+      <button class="settings-add-btn" onclick="openModal('modalSubUser')">+ Medewerker toevoegen</button>
+    </div>` : ''}
+  `;
+}
+
+function openChangePinModal() {
+  document.getElementById('newPin1').value='';
+  document.getElementById('newPin2').value='';
+  openModal('modalPinChange');
+}
+async function savePinChange() {
+  const p1=String(document.getElementById('newPin1').value).padStart(4,'0');
+  const p2=String(document.getElementById('newPin2').value).padStart(4,'0');
+  if(!/^\d{4}$/.test(p1)){toast('Voer een 4-cijferige PIN in');return;}
+  if(p1!==p2){toast('PINs komen niet overeen');return;}
+  await db.collection('gebruikers').doc(currentUser.id).update({pin:p1});
+  currentUser.pin=p1;
+  const u=allUsers.find(u=>u.id===currentUser.id);
+  if(u) u.pin=p1;
+  closeModal('modalPinChange');
+  toast('PIN gewijzigd ✓');
+  renderSettings();
+}
+
+async function saveSubUser() {
+  const naam=document.getElementById('suNaam').value.trim();
+  const pin=String(document.getElementById('suPin').value).padStart(4,'0');
+  if(!naam){toast('Voer een naam in');return;}
+  if(!/^\d{4}$/.test(pin)){toast('Voer een 4-cijferige PIN in');return;}
+  const id=uid();
+  const newUser={id,naam,pin,rol:'sub',aangemaaktDoor:currentUser.naam};
+  await db.collection('gebruikers').doc(id).set(newUser);
+  if(!allUsers.find(u=>u.id===id)) allUsers.push(newUser);
+  closeModal('modalSubUser');
+  toast('Subgebruiker aangemaakt ✓');
+  renderSettings();
+  renderLoginUsers();
+}
+async function deleteSubUser(id) {
+  if(!confirm('Gebruiker verwijderen?')) return;
+  allUsers=allUsers.filter(u=>u.id!==id);
+  await db.collection('gebruikers').doc(id).delete();
+  toast('Gebruiker verwijderd');
+  renderSettings();
+  renderLoginUsers();
+}
+
+// ─── Service Worker ────────────────────────────────────────
+window._swUpdateReady = false;
+window._swWaiting = null;
+
+function applyUpdate() {
+  if (window._swWaiting) {
+    window._swWaiting.postMessage({ type: 'SKIP_WAITING' });
+  } else {
+    window.location.reload();
+  }
+}
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' }).then(reg => {
+      reg.update(); // force check on every load
+      reg.addEventListener('updatefound', () => {
+        const newSW = reg.installing;
+        newSW.addEventListener('statechange', () => {
+          if (newSW.state === 'installed' && navigator.serviceWorker.controller) {
+            window._swUpdateReady = true;
+            window._swWaiting = newSW;
+            // show update button if settings is open
+            if (document.getElementById('settingsOverlay').classList.contains('open')) renderSettings();
+            // also show a toast
+            toast('Update beschikbaar — zie Instellingen');
+          }
+        });
+      });
+    }).catch(()=>{});
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      window.location.reload();
+    });
+  });
+}
+
+// ─── Modals ────────────────────────────────────────────────
+function openModal(id)  { document.getElementById(id).classList.add('open'); }
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(o=>{
+  o.addEventListener('click',e=>{ if(e.target===o) o.classList.remove('open'); });
+});
+</script>
+</body>
+</html>
