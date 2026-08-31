@@ -546,6 +546,10 @@ textarea.form-input { resize: none; line-height: 1.5; }
         <label class="form-label">Klantnaam *</label>
         <input class="form-input" id="fKlant" type="text" placeholder="Naam van de klant" autocomplete="off">
       </div>
+      <div class="form-group">
+        <label class="form-label">Adres</label>
+        <input class="form-input" id="fAdres" type="text" placeholder="Straat, huisnummer, plaats" autocomplete="off">
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Starttijd</label>
@@ -940,6 +944,7 @@ function agendaItemHtml(a, showDate) {
       ${showDate?`<div style="font-size:11px;color:var(--text-muted);font-weight:600;margin-bottom:2px;">${fmtDateLong(a.datum)}</div>`:''}
       <div class="agenda-item-client">${a.klantnaam||'Onbekend'}</div>
       ${a.startTijd?`<div class="agenda-item-time-range">${a.startTijd} – ${a.eindTijd||'?'}</div>`:''}
+      ${a.adres?`<div class="agenda-item-desc" style="color:#7b1fa2;">📍 ${a.adres}</div>`:''}
       ${a.omschrijving?`<div class="agenda-item-desc">${a.omschrijving}</div>`:''}
     </div>
   </div>`;
@@ -1071,6 +1076,7 @@ function openAfspraakModal(id) {
     if (!a) return;
     document.getElementById('modalAfspraakTitle').textContent='Afspraak bewerken';
     document.getElementById('fKlant').value=a.klantnaam||'';
+    document.getElementById('fAdres').value=a.adres||'';
     setTP('fStartP',a.startTijd||'');
     setTP('fEindP',a.eindTijd||'');
     document.getElementById('fOmschrijving').value=a.omschrijving||'';
@@ -1078,6 +1084,7 @@ function openAfspraakModal(id) {
   } else {
     document.getElementById('modalAfspraakTitle').textContent='Nieuwe afspraak';
     document.getElementById('fKlant').value='';
+    document.getElementById('fAdres').value='';
     setTP('fStartP','');
     setTP('fEindP','');
     document.getElementById('fOmschrijving').value='';
@@ -1093,6 +1100,7 @@ async function saveAfspraak() {
   const existing = editAfspraakId ? allAfspraken.find(a=>a.id===id)||{} : {};
   const data = {
     id, klantnaam: klant, datum: calSelected,
+    adres: document.getElementById('fAdres').value.trim(),
     startTijd: getTP('fStartP'),
     eindTijd: getTP('fEindP'),
     omschrijving: document.getElementById('fOmschrijving').value.trim(),
@@ -1150,6 +1158,7 @@ function renderReg() {
           <span class="reg-card-client">${a.klantnaam}</span>
           ${a.startTijd?`<span class="reg-card-planned">${a.startTijd}–${a.eindTijd||'?'}</span>`:''}
         </div>
+        ${a.adres?`<div class="reg-card-desc" style="color:#7b1fa2;">📍 ${a.adres}</div>`:''}
         ${a.omschrijving?`<div class="reg-card-desc">${a.omschrijving}</div>`:''}
         <div class="reg-card-status-row">
           <span class="status-badge${done?' done':''}">${done?'✓ Geregistreerd':'○ In te vullen'}</span>
