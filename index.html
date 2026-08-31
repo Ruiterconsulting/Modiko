@@ -583,6 +583,13 @@ textarea.form-input { resize: none; line-height: 1.5; }
         <label class="form-label">Klant</label>
         <input class="form-input" id="rKlant" type="text" readonly>
       </div>
+      <div id="rAdresWrap" style="display:none;margin-bottom:12px;">
+        <a id="rAdresLink" target="_blank" rel="noopener"
+           style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:#f3e5f5;border-radius:12px;color:#7b1fa2;font-size:14px;font-weight:500;text-decoration:none;">
+          <span style="font-size:18px;">📍</span>
+          <span id="rAdresTxt"></span>
+        </a>
+      </div>
       <div class="form-row">
         <div class="form-group">
           <label class="form-label">Werkelijke starttijd</label>
@@ -1182,6 +1189,17 @@ function openRegModal(id) {
   const a=allAfspraken.find(x=>x.id===id); if(!a) return;
   document.getElementById('modalRegTitle').textContent=a.klantnaam;
   document.getElementById('rKlant').value=a.klantnaam;
+  // Adres tonen als klikbare Maps-link
+  const adresWrap=document.getElementById('rAdresWrap');
+  const adresTxt=document.getElementById('rAdresTxt');
+  const adresLink=document.getElementById('rAdresLink');
+  if (a.adres) {
+    adresTxt.textContent=a.adres;
+    adresLink.href='https://maps.google.com/?q='+encodeURIComponent(a.adres);
+    adresWrap.style.display='block';
+  } else {
+    adresWrap.style.display='none';
+  }
   setTP('rStartP',a.actualStartTijd||'');
   setTP('rEindP',a.actualEindTijd||'');
   document.getElementById('rNotes').value=a.regNotes||'';
