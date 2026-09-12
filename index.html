@@ -605,6 +605,10 @@ textarea.form-input { resize: none; line-height: 1.5; }
         </div>
       </div>
       <div class="form-group">
+        <label class="form-label">Pauze (minuten)</label>
+        <input class="form-input" id="rPauze" type="number" inputmode="numeric" placeholder="0" min="0" step="5">
+      </div>
+      <div class="form-group">
         <label class="form-label">Opmerkingen</label>
         <textarea class="form-input" id="rNotes" rows="3" placeholder="Notities, bijzonderheden…"></textarea>
       </div>
@@ -763,10 +767,12 @@ function isoWeek(date) {
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
 }
-function calcH(s, e) {
+function calcH(s, e, pauzeMin) {
   if (!s||!e) return 0;
   const [sh,sm]=s.split(':').map(Number), [eh,em]=e.split(':').map(Number);
-  return ((eh*60+em)-(sh*60+sm))/60;
+  let mins = (eh*60+em)-(sh*60+sm) - (pauzeMin||0);
+  if (mins < 0) mins = 0;
+  return mins/60;
 }
 function fmtH(h) {
   if (h<=0) return '0:00';
@@ -1160,7 +1166,7 @@ function renderReg() {
 
   list.innerHTML = items.map(a=>{
     const done=a.geregistreerd;
-    const hours=done?calcH(a.actualStartTijd,a.actualEindTijd):0;
+    const hours=done?calcH(a.actualStartTijd,a.actualEindTijd,a.pauzeMinuten):0;
     return `
     <div class="reg-card${done?' done':''}" onclick="openRegModal('${a.id}')">
       <div class="reg-card-accent"></div>
@@ -1181,6 +1187,7 @@ function renderReg() {
             <span class="reg-card-actual-lbl">Werkelijk:</span>
             <span class="reg-card-actual-val">${a.actualStartTijd} – ${a.actualEindTijd}</span>
           </div>
+          ${a.pauzeMinuten?`<div class="reg-card-actual-row"><span class="reg-card-actual-lbl">Pauze:</span><span class="reg-card-actual-val">${a.pauzeMinuten} min</span></div>`:''}
           ${a.regNotes?`<div class="reg-card-actual-row"><span class="reg-card-actual-lbl">Notitie:</span><span class="reg-card-actual-val">${a.regNotes}</span></div>`:''}
         </div>`:''}
       </div>
@@ -1206,6 +1213,7 @@ function openRegModal(id) {
   }
   setTP('rStartP',a.actualStartTijd||'');
   setTP('rEindP',a.actualEindTijd||'');
+  document.getElementById('rPauze').value=a.pauzeMinuten||'';
   document.getElementById('rNotes').value=a.regNotes||'';
   openModal('modalReg');
 }
@@ -1213,10 +1221,16 @@ function openRegModal(id) {
 async function saveReg() {
   const start=getTP('rStartP');
   const eind=getTP('rEindP');
+  const pauzeRaw=document.getElementById('rPauze').value;
+  const pauze=pauzeRaw===''?0:parseInt(pauzeRaw,10);
   const notes=document.getElementById('rNotes').value.trim();
   if (!start||!eind) { toast('Vul start- en eindtijd in'); return; }
+  if (isNaN(pauze)||pauze<0) { toast('Vul een geldige pauzeduur in'); return; }
+  const totalMins=calcH(start,eind)*60;
+  if (totalMins>0 && pauze>=totalMins) { toast('Pauze kan niet langer zijn dan de werktijd'); return; }
   await db.collection('afspraken').doc(openRegId).update({
     geregistreerd:true, actualStartTijd:start, actualEindTijd:eind,
+    pauzeMinuten:pauze,
     regNotes:notes, geregistreerdDoor:currentUser.naam,
     geregistreerdOp:new Date().toISOString()
   });
@@ -1306,7 +1320,7 @@ function renderUren() {
   populateUrenFilter();
 
   const items=getFilteredUrenItems();
-  const totalH=items.reduce((sum,a)=>sum+calcH(a.actualStartTijd,a.actualEindTijd),0);
+  const totalH=items.reduce((sum,a)=>sum+calcH(a.actualStartTijd,a.actualEindTijd,a.pauzeMinuten),0);
   const list=document.getElementById('urenList');
 
   if(items.length===0){
@@ -1318,7 +1332,7 @@ function renderUren() {
   const perPersoon={};
   items.forEach(a=>{
     const n=a.geregistreerdDoor||'Onbekend';
-    perPersoon[n]=(perPersoon[n]||0)+calcH(a.actualStartTijd,a.actualEindTijd);
+    perPersoon[n]=(perPersoon[n]||0)+calcH(a.actualStartTijd,a.actualEindTijd,a.pauzeMinuten);
   });
 
   let html=`
@@ -1343,7 +1357,7 @@ function renderUren() {
 
   let lastDate='', lastWeek=-1;
   items.forEach(a=>{
-    const h=calcH(a.actualStartTijd,a.actualEindTijd);
+    const h=calcH(a.actualStartTijd,a.actualEindTijd,a.pauzeMinuten);
     if(urenView!=='dag'&&a.datum!==lastDate){
       // Week header in maand view
       if(urenView==='maand') {
@@ -1369,7 +1383,7 @@ function renderUren() {
             <span class="uren-entry-client">${a.klantnaam}</span>
             <span class="uren-entry-hours">${fmtH(h)} uur</span>
           </div>
-          <div class="uren-entry-time">${a.actualStartTijd} – ${a.actualEindTijd}</div>
+          <div class="uren-entry-time">${a.actualStartTijd} – ${a.actualEindTijd}${a.pauzeMinuten?' · '+a.pauzeMinuten+' min pauze':''}</div>
           ${a.regNotes?`<div class="uren-entry-notes">${a.regNotes}</div>`:''}
           ${a.geregistreerdDoor?`<div class="uren-entry-by">👤 ${a.geregistreerdDoor}</div>`:''}
         </div>
@@ -1419,7 +1433,7 @@ function downloadPDF() {
 
   // Per-persoon totalen
   const perP={};
-  items.forEach(a=>{ const n=a.geregistreerdDoor||'Onbekend'; perP[n]=(perP[n]||0)+calcH(a.actualStartTijd,a.actualEindTijd); });
+  items.forEach(a=>{ const n=a.geregistreerdDoor||'Onbekend'; perP[n]=(perP[n]||0)+calcH(a.actualStartTijd,a.actualEindTijd,a.pauzeMinuten); });
   const personen=Object.keys(perP);
   y+=22;
   if(personen.length>0){
@@ -1441,8 +1455,8 @@ function downloadPDF() {
   doc.setFillColor(240,233,248);
   doc.rect(M,y,PW-2*M,7,'F');
   doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(80,20,100);
-  const cols=[M+2, M+44, M+80, M+108, M+136, M+158];
-  const hdrs=['Datum','Klant','Gepland','Werkelijk','Uren','Door'];
+  const cols=[M+2, M+34, M+62, M+88, M+114, M+132, M+152];
+  const hdrs=['Datum','Klant','Gepland','Werkelijk','Pauze','Uren','Door'];
   hdrs.forEach((h,i)=>doc.text(h,cols[i],y+5));
   y+=9;
 
@@ -1459,15 +1473,17 @@ function downloadPDF() {
     }
     if(rowAlt){ doc.setFillColor(252,249,255); doc.rect(M,y,PW-2*M,8,'F'); }
     doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(30,30,30);
-    const h=calcH(a.actualStartTijd,a.actualEindTijd);
+    const h=calcH(a.actualStartTijd,a.actualEindTijd,a.pauzeMinuten);
     doc.text(fmtDateMedium(a.datum),cols[0],y+5.5);
-    doc.text((a.klantnaam||'').slice(0,20),cols[1],y+5.5);
+    doc.text((a.klantnaam||'').slice(0,16),cols[1],y+5.5);
     doc.text((a.startTijd||'')+' – '+(a.eindTijd||''),cols[2],y+5.5);
     doc.text((a.actualStartTijd||'')+' – '+(a.actualEindTijd||''),cols[3],y+5.5);
+    doc.setTextColor(30,30,30);
+    doc.text(a.pauzeMinuten?a.pauzeMinuten+' min':'–',cols[4],y+5.5);
     doc.setFont('helvetica','bold'); doc.setTextColor(139,32,172);
-    doc.text(fmtH(h),cols[4],y+5.5);
+    doc.text(fmtH(h),cols[5],y+5.5);
     doc.setFont('helvetica','normal'); doc.setTextColor(100,100,100);
-    doc.text((a.geregistreerdDoor||'').split(' ')[0],cols[5],y+5.5);
+    doc.text((a.geregistreerdDoor||'').split(' ')[0],cols[6],y+5.5);
     if(a.regNotes){
       y+=8;
       doc.setTextColor(100,100,100); doc.setFontSize(7);
